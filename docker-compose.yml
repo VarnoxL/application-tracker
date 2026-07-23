@@ -1,0 +1,26 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    env_file: backend/.env
+    environment:
+      # Overrides .env: inside compose, containers reach each other by service name.
+      MONGO_URI: mongodb://db:27017
+    depends_on:
+      db:
+        # Without this the API can win the race and start without its indexes.
+        condition: service_healthy
+
+  db:
+    image: mongo:7
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mongo:/data/db
+
+volumes:
+  mongo:

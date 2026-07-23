@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Job Application Tracker",
+  "description": "Log a job application from any ATS page in one click.",
+  "version": "0.1.0",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost:5000/*"],
+  "action": {
+    "default_title": "Log this application",
+    "default_popup": "popup.html"
+  }
+}
