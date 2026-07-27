@@ -201,6 +201,20 @@ def viewer():
     return render_template_string(PAGE, apps=docs)
 
 
+@app.delete("/applications/<id>")
+@require_key
+def delete(id):
+    try:
+        oid = ObjectId(id)
+    except (InvalidId, TypeError):
+        return jsonify({"error": "bad id"}), 400
+    # user_id in the filter so you can only delete your own.
+    result = apps.delete_one({"_id": oid, "user_id": g.user_id})
+    if not result.deleted_count:
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

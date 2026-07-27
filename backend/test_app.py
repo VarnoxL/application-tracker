@@ -8,6 +8,7 @@ import os
 
 os.environ.setdefault("API_KEY", "test-key")
 
+from bson import ObjectId  # noqa: E402
 from app import STATUSES, apps, canonical, client, ensure_indexes  # noqa: E402
 from app import app as flask_app  # noqa: E402
 
@@ -100,6 +101,10 @@ def test_round_trip():
     assert c.get("/applications", headers={"X-API-Key": "wrong"}).status_code == 401
     assert c.post("/applications", headers=auth,
                   json={"url": url, "role": "x"}).status_code == 400  # no company
+
+    assert c.delete(f"/applications/{app_id}", headers=auth).status_code == 204
+    assert apps.count_documents({"_id": ObjectId(app_id)}) == 0  # actually gone
+    assert c.delete(f"/applications/{app_id}", headers=auth).status_code == 404  # already gone
 
     apps.delete_many({"url": url})
 

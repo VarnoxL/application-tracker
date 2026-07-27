@@ -45,6 +45,16 @@ async function init() {
   }
 }
 
+const STATUSES = ["Applied", "OA", "Interview", "Offer", "Rejected"];
+
+async function api(path, options) {
+  const { apiKey } = await chrome.storage.sync.get("apiKey");
+  return fetch(`${API}${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", "X-API-Key": apiKey, ...options?.headers },
+  });
+}
+
 // Build rows with textContent, never innerHTML - company/role come off arbitrary
 // pages and must not be able to inject markup into the popup.
 function renderList(apps) {
@@ -66,11 +76,39 @@ function renderList(apps) {
     co.textContent = a.company;
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = [a.role, a.location].filter(Boolean).join(" - ");
+    meta.textContent = [a.role, a.location, a.date_applied].filter(Boolean).join(" - ");
     left.append(co, meta);
+
     const right = tr.insertCell();
     right.className = "st";
-    right.textContent = `${a.status} - ${a.date_applied}`;
+
+    const select = document.createElement("select");
+    for (const s of STATUSES) {
+      const opt = new Option(s, s, false, s === a.status);
+      select.add(opt);
+    }
+    select.addEventListener("change", async () => {
+      const prev = a.status;
+      const r = await api(`/applications/${a.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: select.value }),
+      });
+      if (r.ok) { a.status = select.value; msg("Updated.", "ok"); }
+      else { select.value = prev; msg("Update failed.", "error"); }
+    });
+
+    const del = document.createElement("button");
+    del.textContent = "x";
+    del.className = "del";
+    del.title = "Delete";
+    del.addEventListener("click", async () => {
+      if (!confirm(`Delete ${a.company} - ${a.role}?`)) return;
+      const r = await api(`/applications/${a.id}`, { method: "DELETE" });
+      if (r.ok) { tr.remove(); msg("Deleted.", "ok"); }
+      else { msg("Delete failed.", "error"); }
+    });
+
+    right.append(select, del);
   }
   list.append(table);
 }
