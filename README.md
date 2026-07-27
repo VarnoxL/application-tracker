@@ -44,10 +44,15 @@ All routes take an `X-API-Key` header. Errors come back as `{"error": "..."}`.
 
 | | |
 |---|---|
+| `GET /?key=API_KEY` | The viewer — an HTML table of your applications, newest first. Open it in a browser. |
 | `POST /applications` | Save a posting. Upserts on `(user_id, url)`, so saving twice updates instead of duplicating — 201 on insert, 200 on update. |
-| `GET /applications` | Your applications, newest first. `?page=` and `?per_page=` (capped at 100). |
+| `GET /applications` | Same list as JSON. `?page=` and `?per_page=` (capped at 100). |
 | `PATCH /applications/<id>` | Change status: `Applied \| OA \| Interview \| Offer \| Rejected`. |
 | `GET /health` | Unauthenticated liveness check. |
+
+To see what you've logged, open `http://localhost:5000/?key=YOUR_API_KEY` in a browser. The JSON
+routes take the key as an `X-API-Key` header; the viewer takes it as `?key=` because a browser
+can't set headers on plain navigation.
 
 ## Running it
 
@@ -59,7 +64,8 @@ python backend/test_app.py              # tests (needs backend/requirements.txt 
 
 Then load the extension: `chrome://extensions` → enable Developer mode → **Load unpacked** →
 select `extension/`. Open a posting, click the icon, paste the same `API_KEY` on first run — it's
-stored in `chrome.storage.sync` and asked for once.
+stored in `chrome.storage.sync` and asked for once. Browse what you've saved at
+`http://localhost:5000/?key=YOUR_API_KEY`.
 
 The backend URL is `http://localhost:5000` in two places, both of which change together when this
 deploys: `API` at the top of [popup.js](extension/popup.js#L1) and `host_permissions` in

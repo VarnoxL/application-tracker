@@ -12,11 +12,14 @@ is deploy (Phase 5) and using it for real (Phase 6). Nothing is on the internet 
 
 - **Extension** — popup injects `extract.js` on click (`activeTab` + `chrome.scripting`, no content
   script, no background worker). JSON-LD first, meta-tag fallback. Every field editable before save.
-- **Backend** — Flask, one file, four routes:
+- **Backend** — Flask, one file, five routes:
+  - `GET /?key=API_KEY` — the viewer: HTML table of your applications, newest first (open in browser).
   - `POST /applications` — upserts on `(user_id, url)`; save twice = one record (201 insert / 200 update).
-  - `GET /applications` — your list, newest first, paginated (`?page=`, `?per_page=` capped at 100).
+  - `GET /applications` — same list as JSON, paginated (`?page=`, `?per_page=` capped at 100).
   - `PATCH /applications/<id>` — change status.
   - `GET /health` — unauthenticated liveness check.
+- **Viewer** — `http://localhost:5000/?key=YOUR_API_KEY`. Key via query param (browser can't set
+  headers on navigation); Jinja autoescaping handles XSS from arbitrary page data.
 - **Database** — MongoDB, `applications` collection. Unique index on `(user_id, url)` is what makes
   dedup work; URLs canonicalized (query/fragment stripped, host lowercased) before storing.
 - **Auth** — single `X-API-Key` shared secret from env. Not an LLM/OpenAI key — a password you
@@ -39,9 +42,6 @@ First save prompts for the API key — paste the same string from `.env`.
 
 ## Open work
 
-- **No viewer.** Saving works; there's no UI to browse saved applications. Today the only read path
-  is `curl -H "X-API-Key: KEY" localhost:5000/applications`. Smallest fix: a `GET /applications` HTML
-  page served by Flask (one route + one template), or a list tab in the popup.
 - **Not deployed** (Phase 5): ECR → ECS Fargate, MongoDB Atlas, connection string via Secrets
   Manager, CloudWatch logs.
 - **Single-user by design.** One key, one `USER_ID`, both from env. A second user needs an

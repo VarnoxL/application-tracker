@@ -46,6 +46,13 @@ def test_statuses():
     assert STATUSES == ("Applied", "OA", "Interview", "Offer", "Rejected")
 
 
+def test_viewer_auth():
+    # The viewer is a browser page, so its key comes from ?key=, not the header.
+    c = flask_app.test_client()
+    assert c.get("/").status_code == 401
+    assert c.get("/?key=wrong").status_code == 401
+
+
 def mongo_available():
     try:
         client.admin.command("ping")
@@ -100,6 +107,7 @@ def test_round_trip():
 if __name__ == "__main__":
     test_canonical()
     test_statuses()
+    test_viewer_auth()
     if mongo_available():
         test_round_trip()
         print("ok (including round trip)")

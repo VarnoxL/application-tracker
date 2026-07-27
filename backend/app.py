@@ -7,7 +7,7 @@ from urllib.parse import urlsplit, urlunsplit
 from bson import ObjectId
 from bson.errors import InvalidId
 from dotenv import load_dotenv
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, render_template_string, request
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 
 load_dotenv()
@@ -154,6 +154,51 @@ def update_status(id):
     if not doc:
         return jsonify({"error": "not found"}), 404
     return jsonify(serialize(doc))
+
+
+PAGE = """<!doctype html>
+<title>Applications</title>
+<style>
+  body { font: 15px system-ui, sans-serif; margin: 2rem auto; max-width: 60rem; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #ddd; }
+  th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+  tr:hover td { background: #f6f6f6; }
+  .status { font-size: .8rem; padding: .1rem .5rem; border-radius: 1rem; background: #eee; }
+  a { color: inherit; }
+  .empty { color: #666; }
+</style>
+<h1>Applications <span class="empty">({{ apps|length }})</span></h1>
+{% if apps %}
+<table>
+  <tr><th>Applied</th><th>Company</th><th>Role</th><th>Location</th><th>Status</th></tr>
+  {% for a in apps %}
+  <tr>
+    <td>{{ a.date_applied }}</td>
+    <td>{{ a.company }}</td>
+    <td><a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.role }}</a></td>
+    <td>{{ a.location }}</td>
+    <td><span class="status">{{ a.status }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">Nothing logged yet. Save one from the extension.</p>
+{% endif %}
+"""
+
+
+@app.get("/")
+def viewer():
+    # Browser navigation can't set X-API-Key, so the page takes the key as ?key=.
+    # ponytail: query-param key is fine for a single-user localhost tool; it lands in
+    # browser history and access logs, so move to a session cookie if this goes multi-user.
+    key = request.args.get("key", "")
+    if not API_KEY or not hmac.compare_digest(key, API_KEY):
+        return "add ?key=YOUR_API_KEY to the URL", 401
+    docs = list(apps.find({"user_id": USER_ID}).sort("date_applied", DESCENDING))
+    return render_template_string(PAGE, apps=docs)
 
 
 @app.get("/health")
