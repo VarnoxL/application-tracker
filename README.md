@@ -50,9 +50,10 @@ All routes take an `X-API-Key` header. Errors come back as `{"error": "..."}`.
 | `PATCH /applications/<id>` | Change status: `Applied \| OA \| Interview \| Offer \| Rejected`. |
 | `GET /health` | Unauthenticated liveness check. |
 
-To see what you've logged, open `http://localhost:5000/?key=YOUR_API_KEY` in a browser. The JSON
-routes take the key as an `X-API-Key` header; the viewer takes it as `?key=` because a browser
-can't set headers on plain navigation.
+To see what you've logged, click **View saved applications** in the extension popup — it lists them
+inline. There's also a standalone page at `http://localhost:5000/?key=YOUR_API_KEY` for a
+full-screen table. The JSON routes take the key as an `X-API-Key` header; the standalone viewer
+takes it as `?key=` because a browser can't set headers on plain navigation.
 
 ## Running it
 

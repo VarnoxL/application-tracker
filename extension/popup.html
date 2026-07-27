@@ -12,6 +12,14 @@
   #msg.ok { color: #060; }
   .hint { font-weight: 400; color: #666; font-size: 11px; }
   [hidden] { display: none; }
+  #toggle { background: none; border: none; color: #06c; padding: 0; margin-top: 10px;
+            width: auto; font: inherit; cursor: pointer; text-decoration: underline; }
+  #list table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  #list td { padding: 4px 4px; border-bottom: 1px solid #8883; vertical-align: top; }
+  #list .co { font-weight: 600; }
+  #list .meta { color: #888; font-size: 11px; }
+  #list .st { font-size: 11px; white-space: nowrap; }
+  #list .empty { color: #888; }
 </style>
 
 <section id="setup" hidden>
@@ -44,6 +52,10 @@
 
   <button type="submit" id="save">Save Application</button>
 </form>
+
+<button id="toggle" hidden>View saved applications</button>
+
+<section id="list" hidden></section>
 
 <p id="msg"></p>
 
