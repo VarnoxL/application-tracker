@@ -68,6 +68,9 @@ assertion before fixing. That's how the parser gets better without regressing.
 **Never add `Co-Authored-By` trailers to commits.** No AI attribution, no "Generated with" footers.
 Commit messages describe the change and nothing else.
 
+**Show the diff before committing.** After every change, show the user the diff, then commit and
+push, before starting the next part of the task.
+
 ## Commands
 
 ```
