@@ -52,6 +52,15 @@ free-form on purpose — that's where ATS-specific noise goes.
 **Never put secrets in the image or the repo.** Atlas connection string and API keys come from env
 at runtime. `.env.example` is committed with comments; `.env` is not.
 
+**Stop and ask when the code needs a human's opinion.** Don't guess, and don't quietly take a
+default. When a choice is genuinely the author's — a style or design call, a UX decision, a
+tradeoff with no obvious winner, a heuristic threshold, a name that sets a convention, anything
+touching personal data or an outside service — stop writing and ask *before* the code exists.
+Lay out the options with a recommendation, then build what's chosen and follow it from then on.
+Noticing the question halfway through is fine; writing past it is not. This is not a licence to
+ask about everything: routine mechanical calls stay yours to make. It's for the ones where a bad
+guess means a rewrite, or worse, silently living with a decision the author never got to make.
+
 ## Tests
 
 `backend/test_app.py` — plain `assert`s under `if __name__ == "__main__"`. No pytest, no fixtures,
