@@ -3,17 +3,21 @@
 <title>Log Application</title>
 <style>
   :root { color-scheme: light dark; }
-  body { font: 13px system-ui, sans-serif; width: 300px; margin: 0; padding: 12px; }
+  body { font: 13px system-ui, sans-serif; width: 340px; margin: 0; padding: 12px; }
   label { display: block; margin-top: 8px; font-weight: 600; }
-  input, select, button { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 2px; }
+  input, select, button, textarea { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 2px; }
   button { margin-top: 12px; padding: 8px; font-weight: 600; cursor: pointer; }
   #msg { margin: 8px 0 0; min-height: 1em; }
   #msg.error { color: #c00; }
   #msg.ok { color: #060; }
   .hint { font-weight: 400; color: #666; font-size: 11px; }
   [hidden] { display: none; }
-  #toggle { background: none; border: none; color: #06c; padding: 0; margin-top: 10px;
-            width: auto; font: inherit; cursor: pointer; text-decoration: underline; }
+
+  nav { display: flex; border-bottom: 1px solid #8883; margin: -4px 0 4px; }
+  nav button { flex: 1; width: auto; margin: 0; padding: 6px 4px; font: inherit; color: #06c;
+               background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
+  nav button[aria-current="true"] { border-bottom-color: #06c; font-weight: 700; }
+
   #list table { width: 100%; border-collapse: collapse; margin-top: 8px; }
   #list td { padding: 4px 4px; border-bottom: 1px solid #8883; vertical-align: top; }
   #list .co { font-weight: 600; }
@@ -23,6 +27,17 @@
   #list .del { width: auto; margin: 0 0 0 4px; padding: 2px 6px; font-size: 11px;
                color: #c00; background: none; border: 1px solid #c006; cursor: pointer; }
   #list .empty { color: #888; }
+
+  h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #888;
+       margin: 16px 0 0; border-top: 1px solid #8883; padding-top: 10px; }
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; min-width: 0; }
+  .entry { border: 1px solid #8883; padding: 6px 6px 8px; margin-top: 8px; position: relative; }
+  .entry .rm { position: absolute; top: 4px; right: 4px; width: auto; margin: 0;
+               padding: 0 5px; font-size: 12px; line-height: 1.4; color: #c00;
+               background: none; border: 1px solid #c006; cursor: pointer; }
+  .entry label:first-child { margin-top: 0; }
+  .add { margin-top: 6px; padding: 5px; font-weight: 400; font-size: 12px; }
 </style>
 
 <section id="setup" hidden>
@@ -30,6 +45,12 @@
   <input id="key" type="password" autocomplete="off" />
   <button id="saveKey">Save key</button>
 </section>
+
+<nav id="nav" hidden>
+  <button id="navLog" type="button">Log</button>
+  <button id="navList" type="button">Saved</button>
+  <button id="navProfile" type="button">Profile</button>
+</nav>
 
 <form id="form" hidden>
   <label for="company">Company</label>
@@ -56,10 +77,117 @@
   <button type="submit" id="save">Save Application</button>
 </form>
 
-<button id="toggle" hidden>View saved applications</button>
-
 <section id="list" hidden></section>
+
+<section id="profile" hidden>
+  <label for="resumeFile">Resume <span class="hint">PDF, parsed on this machine only</span></label>
+  <input id="resumeFile" type="file" accept="application/pdf" />
+  <p id="resumeStatus" class="hint"></p>
+
+  <h3>Contact</h3>
+  <div class="row">
+    <div>
+      <label for="p_firstName">First name</label>
+      <input id="p_firstName" autocomplete="off" />
+    </div>
+    <div>
+      <label for="p_lastName">Last name</label>
+      <input id="p_lastName" autocomplete="off" />
+    </div>
+  </div>
+
+  <label for="p_email">Email</label>
+  <input id="p_email" autocomplete="off" />
+
+  <label for="p_phone">Phone</label>
+  <input id="p_phone" autocomplete="off" />
+
+  <label for="p_location">Location</label>
+  <input id="p_location" autocomplete="off" />
+
+  <label for="p_linkedin">LinkedIn</label>
+  <input id="p_linkedin" autocomplete="off" />
+
+  <label for="p_github">GitHub</label>
+  <input id="p_github" autocomplete="off" />
+
+  <label for="p_website">Website</label>
+  <input id="p_website" autocomplete="off" />
+
+  <h3>Education</h3>
+  <div id="eduRows"></div>
+  <button id="addEdu" class="add" type="button">+ Add education</button>
+
+  <h3>Experience</h3>
+  <div id="expRows"></div>
+  <button id="addExp" class="add" type="button">+ Add experience</button>
+
+  <h3>Skills</h3>
+  <label for="p_skills" class="hint">Comma separated</label>
+  <input id="p_skills" autocomplete="off" />
+
+  <!-- Not on any resume, but exactly what ATS dropdowns ask. Set once, reused everywhere. -->
+  <h3>Application answers</h3>
+
+  <label for="a_workAuthorized">Authorized to work in the US</label>
+  <select id="a_workAuthorized">
+    <option value="">-</option>
+    <option>Yes</option>
+    <option>No</option>
+  </select>
+
+  <label for="a_requiresSponsorship">Will require visa sponsorship</label>
+  <select id="a_requiresSponsorship">
+    <option value="">-</option>
+    <option>Yes</option>
+    <option>No</option>
+  </select>
+
+  <label for="a_gender">Gender</label>
+  <select id="a_gender">
+    <option value="">-</option>
+    <option>Male</option>
+    <option>Female</option>
+    <option>Non-binary</option>
+    <option>Decline to self identify</option>
+  </select>
+
+  <label for="a_race">Race / ethnicity</label>
+  <select id="a_race">
+    <option value="">-</option>
+    <option>American Indian or Alaska Native</option>
+    <option>Asian</option>
+    <option>Black or African American</option>
+    <option>Hispanic or Latino</option>
+    <option>Native Hawaiian or Other Pacific Islander</option>
+    <option>White</option>
+    <option>Two or More Races</option>
+    <option>Decline to self identify</option>
+  </select>
+
+  <label for="a_veteran">Veteran status</label>
+  <select id="a_veteran">
+    <option value="">-</option>
+    <option>I am not a protected veteran</option>
+    <option>I identify as one or more of the classifications of a protected veteran</option>
+    <option>I do not wish to answer</option>
+  </select>
+
+  <label for="a_disability">Disability status</label>
+  <select id="a_disability">
+    <option value="">-</option>
+    <option>No, I do not have a disability</option>
+    <option>Yes, I have a disability, or have had one in the past</option>
+    <option>I do not want to answer</option>
+  </select>
+
+  <label for="a_pronouns">Pronouns</label>
+  <input id="a_pronouns" autocomplete="off" />
+
+  <button id="saveProfile" type="button">Save profile</button>
+</section>
 
 <p id="msg"></p>
 
-<script src="popup.js"></script>
+<script src="vendor/pdf.min.js"></script>
+<script type="module" src="popup.js"></script>
