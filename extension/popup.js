@@ -316,6 +316,47 @@ $("saveProfile").addEventListener("click", async () => {
   msg("Profile saved.", "ok");
 });
 
+/* -------------------------------------------------------------- autofill */
+
+$("autofill").addEventListener("click", async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  $("autofill").disabled = true;
+  msg("Filling…");
+
+  try {
+    // allFrames matters: Greenhouse and Lever embed the form in an iframe, so the
+    // top document often has no fields at all. Each frame reports its own counts.
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      files: ["autofill.js"],
+    });
+
+    const done = results.map((r) => r.result).filter(Boolean);
+    const filled = done.reduce((n, r) => n + (r.filled ?? 0), 0);
+    const left = done.reduce((n, r) => n + (r.left ?? 0), 0);
+    const attached = done.find((r) => r.attached)?.attached;
+
+    if (!filled && !left && !attached) {
+      const noProfile = done.length && done.every((r) => r.noProfile);
+      msg(
+        noProfile
+          ? "No profile yet - import a resume on the Profile tab first."
+          : "Nothing to fill on this page.",
+      );
+      return;
+    }
+
+    const parts = [`Filled ${filled} field${filled === 1 ? "" : "s"}`];
+    if (attached) parts.push(`attached ${attached}`);
+    if (left) parts.push(`left ${left} already set - check the amber ones`);
+    msg(`${parts.join(", ")}.`, "ok");
+  } catch {
+    msg("Can't fill this page - try the application form itself.", "error");
+  } finally {
+    $("autofill").disabled = false;
+  }
+});
+
 /* ------------------------------------------------------------------ nav */
 
 $("navLog").addEventListener("click", () => { msg(""); show("form"); });
@@ -371,6 +412,7 @@ async function init() {
   }
 
   $("nav").hidden = false;
+  $("autofillBar").hidden = false;
   show("form");
   extracted = await extract();
 

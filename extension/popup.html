@@ -18,6 +18,10 @@
                background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
   nav button[aria-current="true"] { border-bottom-color: #06c; font-weight: 700; }
 
+  /* Sits under the nav on every tab - autofill is an action on the page, not a view. */
+  #autofillBar { margin: 0 0 4px; }
+  #autofillBar button { margin-top: 6px; padding: 6px; font-size: 12px; }
+
   #list table { width: 100%; border-collapse: collapse; margin-top: 8px; }
   #list td { padding: 4px 4px; border-bottom: 1px solid #8883; vertical-align: top; }
   #list .co { font-weight: 600; }
@@ -51,6 +55,10 @@
   <button id="navList" type="button">Saved</button>
   <button id="navProfile" type="button">Profile</button>
 </nav>
+
+<div id="autofillBar" hidden>
+  <button id="autofill" type="button">Autofill this page</button>
+</div>
 
 <form id="form" hidden>
   <label for="company">Company</label>

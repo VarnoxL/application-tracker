@@ -10,7 +10,7 @@ Two tracks are open at once — read both before starting:
 | Branch | State |
 |---|---|
 | `main` | Phases 1–4 built, runs locally, **not deployed**. Unchanged. |
-| `resume-autofill` | **In progress.** Resume import + application autofill. Parser done and tested; popup work unverified; autofill not started. |
+| `resume-autofill` | **Feature-complete, unverified.** Resume import + application autofill all written and committed. Parser and field matching are tested; nothing has been loaded in a browser yet. |
 
 ---
 
@@ -97,6 +97,9 @@ Backend and Mongo are **untouched** by this feature — no new routes, no new Py
 |---|---|
 | `cdadad5` | Vendored pdf.js 3.11.174 (legacy UMD) into `extension/vendor/`. Also gitignores `.claude/`. |
 | `0aef88c` | `extension/resume.js` parser + `extension/test_resume.js` + root `package.json`. |
+| `b271657` | Popup resume import + profile editor (`popup.html`, `popup.js`). |
+| `9124a97` | CLAUDE.md rule: stop and ask before coding a judgment call. |
+| `44ba2c0` | `extension/autofill.js` + `extension/test_autofill.js`. |
 
 - `extension/resume.js` — two pure exports, no DOM and no pdf.js import:
   - `linesFrom(items)` rebuilds visual lines from pdf.js x/y coordinates. Reading order alone
@@ -112,18 +115,13 @@ Backend and Mongo are **untouched** by this feature — no new routes, no new Py
 separation, x ordering), contact extraction, both experience layouts, education + GPA, skills label
 stripping, and quiet degradation on an empty/scanned PDF.
 
-## Uncommitted and UNVERIFIED — start here
+## Committed but UNVERIFIED — start here
 
-`git status` shows two modified files. **They have never been loaded in a browser.** No syntax check,
-no click-through. Treat them as a draft, not working code.
+Everything on this track is committed and none of it has been loaded in a browser. Syntax is
+checked (`node --check` on all four extension scripts) and the pure logic is tested, but no
+click-through has happened. Unproven, not working.
 
-- `extension/popup.html` (+142/−~10) — 3-tab nav (Log / Saved / Profile) replacing the old single
-  toggle link; profile view with resume file input, contact fields, education/experience row
-  editors, skills, and the "Application answers" block.
-- `extension/popup.js` (+285/−~47) — now an ES module (`<script type="module">`) importing
-  `resume.js`; pdf.js worker wiring, import→parse→store, profile render/collect, base64 of the PDF.
-
-**First thing to do:** load the extension unpacked, open the popup, and check the console. Likely
+**First thing to do:** load the extension unpacked, open the popup, check the console. Likely
 suspects if it fails:
 
 1. `pdfjsLib` undefined — `vendor/pdf.min.js` must load as a classic script *before* the module.
@@ -132,40 +130,37 @@ suspects if it fails:
 3. Worker path — `pdf.worker.min.js` is addressed via `chrome.runtime.getURL`, same-origin, so it
    should need no `web_accessible_resources` entry.
 
-To throw the draft away and keep the tested parser:
-`git checkout -- extension/popup.html extension/popup.js`
+To unwind the popup draft while keeping the tested parser: `git revert b271657`.
+
+## Built, pending a real form
+
+- **`extension/autofill.js`** — plain script; reads the profile from `chrome.storage.local`
+  itself. Matches `autocomplete` → `type` → label text (`label[for]`, wrapping label,
+  `aria-label`, `aria-labelledby`, `<legend>`, placeholder) → `name`/`id` at 0.9 weight. Every
+  element/spec pair is scored and the strongest assigned first, so each spec fills one field and
+  each field is filled once. Text goes through the native value setter with `input`+`change`.
+  Selects and radio groups match option text exact → prefix → substring either direction.
+  Nothing is ever submitted.
+- **Autofill button** — fixed bar under the nav, visible on every tab. Injects with
+  `allFrames: true` and sums the per-frame counts.
+- **Resume attach** — same click as the field fill, rebuilt from `profile.resume.data` via
+  `DataTransfer`.
+
+### Decisions taken while building these — don't relitigate
+
+- **Never overwrite a field that already has a value.** Leave it; outline it amber with the
+  profile's value in `title` when the two disagree, green when filled. The report reads
+  "Filled 12 fields, attached resume.pdf, left 2 already set — check the amber ones".
+- **EEO/demographic answers autofill like any other field.** They are in the profile because
+  you put them there.
+- **Strict matching, one tunable constant.** `MATCH_THRESHOLD = 0.7` at the top of
+  `autofill.js`. Blank beats wrong. Lower toward ~0.5 if real forms leave too much empty.
+- **A `not` list on every spec.** "Preferred Name", "Company Name" and "Middle Name" all read
+  like name fields, and the near misses are what actually bite.
 
 ## Not started
 
-1. **`extension/autofill.js`** — injected like `extract.js`, but reads the profile itself from
-   `chrome.storage.local`. It must be a plain script, not a module: `chrome.scripting.executeScript`
-   does **not** allow `args` together with `files`, only with `func`.
-
-   Match in this order: `autocomplete` attribute (`given-name`, `family-name`, `email`, `tel`,
-   `address-level2/1`, `country`, `organization`, `url`) → `type` → label text from `<label for>`,
-   wrapping `<label>`, `aria-label`, `aria-labelledby`, `placeholder`, then `name`/`id`. Score and
-   take the best above a threshold; **leave a field alone rather than guess** — a wrong value
-   silently submitted is worse than a blank.
-
-   **Writing text values requires the native setter**, not `el.value =`:
-   ```js
-   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, v);
-   el.dispatchEvent(new Event("input",  { bubbles: true }));
-   el.dispatchEvent(new Event("change", { bubbles: true }));
-   ```
-   Greenhouse and Lever are React-backed; a direct assignment does not update React state and the
-   value vanishes on submit. This is not optional.
-
-   `<select>`: normalize option text, match exact → `startsWith` → `includes`. Radios: group by
-   `name`, match option labels the same way. Outline what was filled. **Never auto-submit.**
-
-2. **"Autofill this page" button** in the popup —
-   `chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ["autofill.js"] })`.
-   `allFrames` matters: Greenhouse and Lever forms are often in an iframe. Sum the per-frame counts
-   and report "Filled N fields."
-
-3. **Attach the resume file** — rebuild a `File` from `profile.resume.data` and assign via
-   `DataTransfer` to file inputs whose label matches `resume`/`cv`, then dispatch `change`.
+Nothing on this track. What remains is browser verification below, then Track 1's deploy.
 
 ## Known ceilings — by decision, not oversight
 
@@ -182,14 +177,20 @@ Each gets a `ponytail:` comment where it lives:
   which is the worse failure.
 - **Workday** will do noticeably worse than Greenhouse/Lever (custom components, multi-step wizard).
   Consistent with the project's no-per-ATS-code stance.
+- **An unlabelled file input** is assumed to be the resume when it's the only one on the page
+  and nothing on it reads "cover letter"/"transcript". Drop that fallback in `attachResume`
+  if a form ever attaches to the wrong slot.
+- **`MATCH_THRESHOLD` is guesswork until real forms tune it.** Set against what Greenhouse and
+  Lever markup looks like, not against a measured pass over real postings.
 - **Scanned/image PDFs** have no text layer; the popup detects empty extraction and says so rather
   than saving an empty profile.
 
 ## Verification for this track
 
 ```bash
-node extension/test_resume.js   # parser asserts
-python backend/test_app.py      # must still pass - this feature touches no backend code
+node extension/test_resume.js    # parser asserts
+node extension/test_autofill.js  # field-matching asserts
+python backend/test_app.py       # must still pass — this feature touches no backend code
 ```
 
 Then, in the browser:

@@ -132,7 +132,7 @@
 
   const { profile } = await chrome.storage.local.get("profile");
   const specs = specsFrom(profile);
-  if (!specs.length) return { filled: 0, left: 0, noProfile: true };
+  if (!specs.length && !profile?.resume?.data) return { filled: 0, left: 0, noProfile: true };
 
   // Visible label text, best signal first. name/id are real signals but weaker
   // than anything the applicant can actually read on screen.
@@ -283,5 +283,54 @@
     }
   }
 
-  return { filled, left };
+  /* ------------------------------------------------------------ resume */
+
+  // File inputs are deliberately excluded from SKIP_TYPES' siblings above: ATS
+  // forms hide the real <input type="file"> behind a styled button, so unlike
+  // every other field this one must be matched while invisible.
+  const attachResume = (resume) => {
+    if (!resume?.data) return null;
+
+    const RESUME_WORDS = ["resume", "cv", "curriculum vitae"];
+    const NOT_RESUME = ["cover letter", "transcript", "portfolio", "photo", "headshot", "writing sample"];
+
+    const inputs = [...document.querySelectorAll('input[type="file"]')].filter(
+      (el) => !el.disabled && el.files?.length === 0,
+    );
+    if (!inputs.length) return null;
+
+    const labelled = (el) =>
+      labelBits(el).reduce((best, b) => Math.max(best, labelScore(b.text, RESUME_WORDS, NOT_RESUME)), 0);
+
+    let target = inputs.find((el) => labelled(el) >= MATCH_THRESHOLD);
+    // ponytail: one unlabelled file input on a job application is the resume in
+    // practice. Only taken when nothing on it reads "cover letter"/"transcript";
+    // drop this fallback if a form ever attaches to the wrong slot.
+    if (!target && inputs.length === 1) {
+      const bits = labelBits(inputs[0]).map((b) => norm(b.text));
+      if (!bits.some((t) => NOT_RESUME.some((w) => t.includes(w)))) target = inputs[0];
+    }
+    if (!target) return null;
+
+    const bytes = Uint8Array.from(atob(resume.data), (c) => c.charCodeAt(0));
+    const file = new File([bytes], resume.name, { type: resume.type || "application/pdf" });
+    // `el.files` is read-only; DataTransfer is the only way to hand it a File.
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    target.files = dt.files;
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+    // The visible control is the styled wrapper, not the hidden input.
+    outline(target.offsetParent ? target : (target.closest("label") ?? target), FILLED_OUTLINE);
+    return resume.name;
+  };
+
+  let attached = null;
+  try {
+    attached = attachResume(profile?.resume);
+  } catch {
+    // A malformed stored PDF must not cost you the fields that already filled.
+  }
+
+  return { filled, left, attached };
 })();
